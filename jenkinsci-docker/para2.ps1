@@ -1,4 +1,4 @@
-
+# https://stackoverflow.com/q/70354367/4074148
 
 $servers = @('Server1','Server2','Server3')
 $maxthreads = 4 # => Limit num of concurrent jobs
