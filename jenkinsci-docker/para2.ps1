@@ -15,12 +15,12 @@ Get-Job Thread* | Remove-Job | Out-Null
 $jobs = foreach ($server in $servers) {
     
     $running = Get-Job -State Running
-    #write-host("Running:"+$running.Count.ToString()) ;Get-Job Thread*
+    Write-Host("Running:"+$running.Count.ToString())
     if ($running.Count -ge $maxthreads) {
         $null = $running | Wait-Job
     }
     #Start-Sleep 1
-    #Write-Host "Starting job for $server"
+    Write-Host "Starting job for $server"
     $ThreadName = "Thread-$server"
     
     Start-Job -Name $ThreadName {
@@ -29,6 +29,28 @@ $jobs = foreach ($server in $servers) {
     } # => Better to capture the Job instances /// | Out-Null
 }
 
+try {
+    while (($jobs | Where-Object { $_.State -ieq "running" } | Measure-Object).Count -gt 0) {
+        $jobs | ForEach-Object { $i = 1 } {
+            $fgColor = $colors[($i - 1) % $colorCount]
+            $out = $_ | Receive-Job
+            $out = $out -split [System.Environment]::NewLine
+            $out | ForEach-Object {
+                Write-Host "$i> "-NoNewline -ForegroundColor $fgColor
+                Write-Host $_
+            }
+            
+            $i++
+        }
+    }
+} finally {
+    Write-Host "Stopping Parallel Jobs ..." -NoNewline
+    $jobs | Stop-Job
+    $jobs | Remove-Job -Force
+    Write-Host " done."
+}
+
+Write-Host "== result..."
 $result = $jobs | Receive-Job -Wait -AutoRemoveJob
 
 Write-Host "== result: $result"
