@@ -5,12 +5,17 @@ $maxthreads = 4 # => Limit num of concurrent jobs
 
 # Sample Function to test
 function SampleFunction ([string]$Name) {
-    Start-Sleep 30
+    Write-Output("=== name: $name")
+    Start-Sleep 10
+    
     Return "Hello $Name from function .."
 }
 $funcDef = "function SampleFunction {$function:SampleFunction}"
 
 Get-Job Thread* | Remove-Job | Out-Null
+
+$colors = "Blue", "Red", "Cyan", "Green", "Magenta"
+$colorCount = $colors.Length
 
 $jobs = foreach ($server in $servers) {
     
@@ -31,12 +36,16 @@ $jobs = foreach ($server in $servers) {
 
 try {
     while (($jobs | Where-Object { $_.State -ieq "running" } | Measure-Object).Count -gt 0) {
-        $jobs | ForEach-Object { $i = 1 } {
-            $fgColor = $colors[($i - 1) % $colorCount]
+        # $jobs | ForEach-Object { $i = 1 } {
+        $jobs | ForEach-Object { # $i = 1 } {
+            $id = $_.Id
+            #Write-Host "id-$id"
+            $fgColor = $colors[($id - 1) % $colorCount]
+            # ConvertTo-Json $_
             $out = $_ | Receive-Job
             $out = $out -split [System.Environment]::NewLine
             $out | ForEach-Object {
-                Write-Host "$i> "-NoNewline -ForegroundColor $fgColor
+                Write-Host "$id> "-NoNewline -ForegroundColor $fgColor
                 Write-Host $_
             }
             
@@ -50,7 +59,7 @@ try {
     Write-Host " done."
 }
 
-Write-Host "== result..."
-$result = $jobs | Receive-Job -Wait -AutoRemoveJob
+# Write-Host "== result..."
+# $result = $jobs | Receive-Job -Wait -AutoRemoveJob
 
-Write-Host "== result: $result"
+# Write-Host "== result: $result"
