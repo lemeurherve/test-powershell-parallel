@@ -9,7 +9,49 @@ Param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue' # Disable Progress bar for faster downloads
 
-function Test-Image {
+
+# https://stackoverflow.com/a/63474090/4074148
+function Start-Parallel {
+    param(
+        [ScriptBlock[]]
+        [Parameter(Position = 0)]
+        $ScriptBlock,
+
+        [Object[]]
+        [Alias("arguments")]
+        $parameters
+    )
+
+    $jobs = $ScriptBlock | ForEach-Object { Start-Job -ScriptBlock $_ -ArgumentList $parameters }
+    $colors = "Blue", "Red", "Cyan", "Green", "Magenta"
+    $colorCount = $colors.Length
+
+    try {
+        while (($jobs | Where-Object { $_.State -ieq "running" } | Measure-Object).Count -gt 0) {
+            $jobs | ForEach-Object { $i = 1 } {
+                $fgColor = $colors[($i - 1) % $colorCount]
+                $out = $_ | Receive-Job
+                $out = $out -split [System.Environment]::NewLine
+                $out | ForEach-Object {
+                    Write-Host "$i> "-NoNewline -ForegroundColor $fgColor
+                    Write-Host $_
+                }
+                
+                $i++
+            }
+        }
+    } finally {
+        Write-Host "Stopping Parallel Jobs ..." -NoNewline
+        $jobs | Stop-Job
+        $jobs | Remove-Job -Force
+        Write-Host " done."
+    }
+}
+
+
+
+
+function TestImage {
     param (
         $ImageName
     )
@@ -42,6 +84,10 @@ function Test-Image {
 
 $tests = @('a', 'b', 'c')
 
+
+
+1..10 | Start-Parallel -Scriptblock ${Function:\TestImage}
+
 foreach($test in $tests) {
     Write-Host "test: $test"
     # Start-Job -Name "test-$image" -ScriptBlock { TestImage $input } -InputObject $image
@@ -62,7 +108,7 @@ foreach($test in $tests) {
 Write-Host "== Get-Job"
 Get-Job
 Write-Host "== Get-Job | Wait-Job"
-Get-Job | Wait-Job
+Get-Job | Wait-Job | Receive-Job
 
 # $Repository = 'jenkins'
 # $Organisation = 'jenkins4eval'
